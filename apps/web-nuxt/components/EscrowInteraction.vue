@@ -53,8 +53,9 @@ const handleSubmit = async () => {
         return
       }
       const finishFn = finishFunction.value.trim().toUpperCase()
-      if (!finishAfter.value && !cancelAfter.value && !finishFn) {
-        showStatus('Provide a Finish Function (smart escrow) and/or Finish After / Cancel After', 'error')
+      // XRPL requires a time bound on every escrow — even a smart (WASM) one.
+      if (!finishAfter.value && !cancelAfter.value) {
+        showStatus('XRPL requires Finish After or Cancel After (even for a smart escrow)', 'error')
         isSubmitting.value = false
         return
       }
@@ -98,12 +99,13 @@ const handleSubmit = async () => {
         Owner: owner.value,
         OfferSequence: seq,
       }
-      // Smart escrow: supply gas for the WASM finish() and a fee large enough to
-      // cover it (mirrors bedrock's escrow finish defaults).
+      // Smart escrow: supply gas for the WASM finish(). The fee must cover the
+      // WASM gas — a flat 1 XRP is rejected with telINSUF_FEE_P. Scale the fee
+      // with the gas allowance (~10 drops/gas covered the worst case locally).
       const allowance = parseInt(computationAllowance.value, 10)
       if (Number.isInteger(allowance) && allowance > 0) {
         transaction.ComputationAllowance = allowance
-        transaction.Fee = '1000000'
+        transaction.Fee = String(allowance * 10)
       }
     } else {
       const seq = parseInt(offerSequence.value, 10)

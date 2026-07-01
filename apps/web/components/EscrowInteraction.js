@@ -58,8 +58,9 @@ export function EscrowInteraction() {
           return;
         }
         const finishFn = finishFunction.trim().toUpperCase();
-        if (!finishAfter && !cancelAfter && !finishFn) {
-          showStatus("Provide a Finish Function (smart escrow) and/or Finish After / Cancel After", "error");
+        // XRPL requires a time bound on every escrow — even a smart (WASM) one.
+        if (!finishAfter && !cancelAfter) {
+          showStatus("XRPL requires Finish After or Cancel After (even for a smart escrow)", "error");
           setIsSubmitting(false);
           return;
         }
@@ -108,7 +109,10 @@ export function EscrowInteraction() {
         const allowance = parseInt(computationAllowance, 10);
         if (Number.isInteger(allowance) && allowance > 0) {
           transaction.ComputationAllowance = allowance;
-          transaction.Fee = "1000000";
+          // The finish fee must cover the WASM gas — a flat 1 XRP is rejected
+          // with telINSUF_FEE_P. Scale the fee with the gas allowance
+          // (~10 drops/gas covered the worst case in local testing).
+          transaction.Fee = String(allowance * 10);
         }
       } else {
         const seq = parseInt(offerSequence, 10);
